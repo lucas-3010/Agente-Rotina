@@ -21,7 +21,7 @@ export default async function Entrar({
           Agente de rotina
         </h1>
         <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-          Seus compromissos em um lugar só, com lembrete por email e WhatsApp.
+          Seus compromissos em um lugar só, com lembretes do Google Agenda no celular e no email.
         </p>
 
         {mensagem && (

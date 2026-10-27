@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MAX_LEMBRETES } from "@/lib/google/limites";
 import { antecedenciaPorExtenso } from "@/lib/tempo";
 import type { Canal } from "@/lib/tipos";
 
@@ -18,12 +19,12 @@ export interface LembreteEscolhido {
 export function SeletorLembretes({ iniciais = [] }: { iniciais?: LembreteEscolhido[] }) {
   const [lembretes, setLembretes] = useState<LembreteEscolhido[]>(iniciais);
   const [minutosCustom, setMinutosCustom] = useState("");
-  const [canal, setCanal] = useState<Canal>("whatsapp");
+  const [canal, setCanal] = useState<Canal>("notificacao");
 
   function adicionar(minutos: number) {
     if (!Number.isFinite(minutos) || minutos < 0) return;
     const jaTem = lembretes.some((l) => l.minutos_antes === minutos && l.canal === canal);
-    if (jaTem) return;
+    if (jaTem || lembretes.length >= MAX_LEMBRETES) return;
     setLembretes([...lembretes, { minutos_antes: minutos, canal }].sort((a, b) => b.minutos_antes - a.minutos_antes));
   }
 
@@ -34,7 +35,7 @@ export function SeletorLembretes({ iniciais = [] }: { iniciais?: LembreteEscolhi
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
-        {(["whatsapp", "email"] as Canal[]).map((c) => (
+        {(["notificacao", "email"] as Canal[]).map((c) => (
           <button
             key={c}
             type="button"
@@ -45,7 +46,7 @@ export function SeletorLembretes({ iniciais = [] }: { iniciais?: LembreteEscolhi
                 : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
             }`}
           >
-            {c === "whatsapp" ? "WhatsApp" : "Email"}
+            {c === "notificacao" ? "Notificação" : "Email"}
           </button>
         ))}
       </div>
@@ -84,6 +85,11 @@ export function SeletorLembretes({ iniciais = [] }: { iniciais?: LembreteEscolhi
         </span>
       </div>
 
+      <p className="text-xs text-slate-500">
+        Quem avisa é o Google Agenda: a notificação chega pelo app da Agenda no celular. Até{" "}
+        {MAX_LEMBRETES} lembretes.
+      </p>
+
       {lembretes.length === 0 ? (
         <p className="text-sm text-slate-500">Sem lembrete. Escolha acima se quiser ser avisado.</p>
       ) : (
@@ -94,7 +100,7 @@ export function SeletorLembretes({ iniciais = [] }: { iniciais?: LembreteEscolhi
               className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 text-sm dark:bg-slate-800"
             >
               <span>
-                {l.canal === "whatsapp" ? "WhatsApp" : "Email"} {antecedenciaPorExtenso(l.minutos_antes)}
+                {l.canal === "notificacao" ? "Notificação" : "Email"} {antecedenciaPorExtenso(l.minutos_antes)}
               </span>
               <button
                 type="button"

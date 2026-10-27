@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Agente de rotina",
-  description: "Seus compromissos com lembrete por email e WhatsApp.",
+  description: "Seus compromissos com lembretes do Google Agenda.",
 };
 
 export const viewport: Viewport = {
