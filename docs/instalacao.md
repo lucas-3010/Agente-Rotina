@@ -67,13 +67,26 @@ Na Vercel, em **Settings > Environment Variables**:
 | `GOOGLE_CLIENT_SECRET` | Google Cloud, passo 2 (secreta) |
 | `RESEND_API_KEY` | Resend, passo 3 |
 | `EMAIL_REMETENTE` | `Agente de rotina <onboarding@resend.dev>` |
-| `EMAIL_PERMITIDO` | Seu email do Google. É o único que entra no site. |
+| `EMAIL_ADMIN` | Seu email do Google. Ele sempre entra no site. |
+| `ACESSO_ABERTO` | `false`: só você e os convidados entram. `true`: qualquer conta Google. |
 | `CRON_SECRET` | Invente uma senha longa, ou gere com `openssl rand -hex 32` |
 | `ANTHROPIC_API_KEY` | Anthropic, passo 5 (opcional) |
 
+## Convidando outras pessoas
+
+O site aceita até 99 convidados além de você. Para cada pessoa:
+
+1. No site, aba **Convites**, adicione o email dela.
+2. No Google Cloud, em **Público > Usuários de teste**, adicione o mesmo email. Sem isso o Google bloqueia o login dela, mesmo convidada no site.
+3. Ela entra no site com o Google e preenche os próprios **Ajustes**. O WhatsApp de cada pessoa precisa da ativação do CallMeBot no número dela (passo 4, feito por ela).
+
+**Email para convidados:** com o remetente de teste `onboarding@resend.dev`, o Resend só entrega para o email da sua própria conta Resend. Para os lembretes por email chegarem aos convidados, verifique um domínio seu no Resend (**Domains > Add domain**) e troque `EMAIL_REMETENTE` para um endereço desse domínio. Sem domínio, os convidados recebem só pelo WhatsApp.
+
+Para tirar alguém, clique em **Remover** na aba Convites. O acesso cai no próximo clique da pessoa, a agenda e o Gmail dela deixam de ser lidos e os lembretes pendentes são cancelados.
+
 ## Conferindo se funcionou
 
-1. Abra o site e entre com o Google. Qualquer outra conta é recusada.
+1. Abra o site e entre com o Google. Contas que não são a sua nem de convidados são recusadas.
 2. Vá em **Ajustes**, preencha o WhatsApp e clique em **Enviar lembrete de teste**. Devem chegar um email e uma mensagem.
 3. Crie uma tarefa para daqui 3 minutos, com lembrete "na hora". Espere e veja se chega.
 4. Em até 5 minutos suas reuniões da agenda aparecem em **Novas reuniões**.

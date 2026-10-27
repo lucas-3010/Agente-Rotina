@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { emailPermitido, supabaseDoUsuario } from "@/lib/supabase/servidor";
+import { podeEntrar } from "@/lib/acesso";
+import { supabaseDoUsuario } from "@/lib/supabase/servidor";
 import { guardarRefreshToken } from "@/lib/google/token";
 
 export const dynamic = "force-dynamic";
@@ -7,7 +8,10 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const destino = url.searchParams.get("de") ?? "/";
+  // Só caminhos do próprio site: "//outro.com" ou uma URL completa levariam o
+  // usuário para fora logo depois do login.
+  const pedido = url.searchParams.get("de") ?? "/";
+  const destino = pedido.startsWith("/") && !pedido.startsWith("//") ? pedido : "/";
 
   if (!code) {
     return NextResponse.redirect(new URL("/entrar?erro=sem-codigo", url.origin));
@@ -20,7 +24,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/entrar?erro=troca", url.origin));
   }
 
-  if (!emailPermitido(data.user.email)) {
+  if (!(await podeEntrar(data.user.email))) {
     await supabase.auth.signOut();
     return NextResponse.redirect(new URL("/entrar?erro=conta", url.origin));
   }

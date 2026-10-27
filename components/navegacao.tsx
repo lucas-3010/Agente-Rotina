@@ -10,13 +10,14 @@ const ABAS = [
   { href: "/configuracoes", rotulo: "Ajustes" },
 ];
 
-export function Navegacao({ pendentes = 0 }: { pendentes?: number }) {
+export function Navegacao({ pendentes = 0, admin = false }: { pendentes?: number; admin?: boolean }) {
   const caminho = usePathname();
+  const abas = admin ? [...ABAS, { href: "/convites", rotulo: "Convites" }] : ABAS;
 
   return (
     <nav className="sticky bottom-0 z-10 border-t border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 sm:top-0 sm:bottom-auto sm:border-b sm:border-t-0">
       <ul className="mx-auto flex max-w-2xl">
-        {ABAS.map((aba) => {
+        {abas.map((aba) => {
           const ativa = caminho === aba.href;
           return (
             <li key={aba.href} className="flex-1">

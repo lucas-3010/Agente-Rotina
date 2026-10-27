@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { ehAdmin, podeEntrar } from "@/lib/acesso";
+import { usuarioAtual } from "@/lib/supabase/servidor";
 import { Navegacao } from "./navegacao";
 
-export function Moldura({
+export async function Moldura({
   titulo,
   subtitulo,
   pendentes = 0,
@@ -12,9 +15,14 @@ export function Moldura({
   pendentes?: number;
   children: React.ReactNode;
 }) {
+  // Toda tela passa por aqui, então um convite removido corta o acesso no
+  // próximo clique, mesmo com a sessão do Google ainda aberta.
+  const usuario = await usuarioAtual();
+  if (!usuario || !(await podeEntrar(usuario.email))) redirect("/entrar?erro=conta");
+
   return (
     <div className="flex min-h-dvh flex-col">
-      <Navegacao pendentes={pendentes} />
+      <Navegacao pendentes={pendentes} admin={ehAdmin(usuario.email)} />
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 pb-24 sm:pb-6">
         <header className="mb-6">

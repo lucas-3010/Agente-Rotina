@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { enviarEmail, enviarWhatsApp } from "@/lib/envio/canais";
 import { configuracoes } from "@/lib/consultas";
-import { emailPermitido, usuarioAtual } from "@/lib/supabase/servidor";
+import { podeEntrar } from "@/lib/acesso";
+import { usuarioAtual } from "@/lib/supabase/servidor";
 
 export const dynamic = "force-dynamic";
 
 /** Botão "enviar teste" das configurações. Exige sessão, como o resto do site. */
 export async function POST() {
   const usuario = await usuarioAtual();
-  if (!usuario || !emailPermitido(usuario.email)) {
+  if (!usuario || !(await podeEntrar(usuario.email))) {
     return NextResponse.json({ erro: "sem permissão" }, { status: 401 });
   }
 
