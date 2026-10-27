@@ -16,7 +16,7 @@ O site roda na Vercel. O Supabase guarda os dados e, pelo Cron, chama as rotas d
 | 30 min | `/api/cron/sync-gmail` | Procura convites no Gmail e os põe na agenda |
 | 1 dia, 7h | `/api/cron/resumo-diario` | Manda o resumo do dia, se estiver ligado |
 
-As telas são **Hoje**, **Semana**, **Nova tarefa**, **Novas reuniões** e **Ajustes**.
+As telas são **Hoje**, **Semana**, **Nova tarefa**, **Novas reuniões** e **Ajustes**, mais **Convites**, que só o admin vê. Como convidar alguém está em [`docs/instalacao.md`](docs/instalacao.md#convidando-outras-pessoas).
 
 ## Decisões que valem saber
 
