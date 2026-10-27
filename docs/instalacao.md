@@ -1,16 +1,20 @@
 # Como colocar o agente no ar
 
-São cinco contas, todas gratuitas. Siga na ordem. No fim, cole aqui no chat os valores pedidos em **Variáveis de ambiente** e eu confiro.
+São cinco contas, todas gratuitas. Siga na ordem e guarde cada valor num bloco de notas: todos só entram na Vercel, no último passo.
+
+> **Nunca cole uma chave secreta em chat, email ou print.** As marcadas como "secreta" abaixo dão acesso total ao banco ou às suas contas. Se precisar de ajuda, mande o nome da tela em que está, não o valor.
 
 ## 1. Supabase (banco)
 
 1. Entre em [supabase.com](https://supabase.com) e crie um projeto. Região: **South America (São Paulo)**.
 2. Guarde a senha do banco que ele pede.
 3. Abra **SQL Editor**, cole o conteúdo de [`supabase/schema.sql`](../supabase/schema.sql) e rode.
-4. Em **Project Settings > API**, copie:
-   - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
-   - `anon public` → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `service_role` → `SUPABASE_SERVICE_ROLE_KEY` (essa é secreta, não mostre a ninguém)
+4. Copie a URL do projeto: botão **Connect** no topo, ou **Project Settings > Data API**. É algo como `https://xxxx.supabase.co` → `NEXT_PUBLIC_SUPABASE_URL`.
+5. Em **Project Settings > API Keys**, copie as duas chaves:
+   - **Publishable key** (começa com `sb_publishable_`) → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - **Secret key** (começa com `sb_secret_`; clique no olho para revelar) → `SUPABASE_SERVICE_ROLE_KEY`. **Secreta.**
+
+   Se o seu projeto mostrar uma aba **Legacy API Keys** com `anon` e `service_role`, elas também funcionam no lugar das duas acima. Use as duas novas ou as duas antigas, sem misturar.
 
 ## 2. Google Cloud (login e acesso à agenda)
 
