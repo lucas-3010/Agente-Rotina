@@ -31,13 +31,14 @@ create unique index if not exists compromissos_gmail_message_idx
 
 create index if not exists compromissos_inicio_idx on compromissos (usuario_id, inicio);
 
--- Lembretes: uma linha por envio agendado.
+-- Lembretes: cópia dos lembretes que estão no evento do Google Agenda,
+-- só para o site mostrar. Quem avisa é o Google.
 create table if not exists lembretes (
   id uuid primary key default gen_random_uuid(),
   usuario_id uuid not null references auth.users (id) on delete cascade,
   compromisso_id uuid not null references compromissos (id) on delete cascade,
   minutos_antes integer not null check (minutos_antes >= 0),
-  canal text not null check (canal in ('email', 'whatsapp')),
+  canal text not null check (canal in ('email', 'notificacao')),
   enviar_em timestamptz not null,
   status text not null default 'pendente' check (status in ('pendente', 'enviado', 'falhou', 'perdido', 'cancelado')),
   tentativas integer not null default 0,
@@ -53,12 +54,7 @@ create unique index if not exists lembretes_unicos_idx
 -- Configurações: uma linha por usuário.
 create table if not exists configuracoes (
   usuario_id uuid primary key references auth.users (id) on delete cascade,
-  whatsapp_telefone text,
-  whatsapp_apikey text,
-  email_destino text,
   lembrete_padrao_minutos integer,
-  resumo_diario boolean not null default false,
-  resumo_hora text not null default '07:00',
   ultima_sync_calendar timestamptz,
   ultima_sync_gmail timestamptz,
   erro_google text,

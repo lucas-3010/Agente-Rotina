@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { conferirSegredo, paraCada, usuariosComGoogle } from "@/lib/cron/autorizar";
-import { listarEventos } from "@/lib/google/calendar";
+import { definirLembretesNoEvento, listarEventos, type EventoDoGoogle } from "@/lib/google/calendar";
 import { GoogleDesconectado } from "@/lib/google/token";
-import { definirLembretes } from "@/lib/lembretes";
+import { guardarLembretes, mesmosLembretes } from "@/lib/lembretes";
 import { supabaseAdmin } from "@/lib/supabase/servidor";
-import { momentoDoLembrete } from "@/lib/tempo";
-import type { Compromisso, Lembrete } from "@/lib/tipos";
+import type { Lembrete } from "@/lib/tipos";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -16,16 +15,19 @@ export async function POST(request: Request) {
   return NextResponse.json(await paraCada(await usuariosComGoogle(), sincronizar));
 }
 
+/**
+ * O Google Agenda é quem avisa, então ele é a fonte da verdade: o site
+ * copia daqui os eventos e os lembretes, inclusive os que você mudar
+ * direto no app da Agenda.
+ */
 async function sincronizar(usuarioId: string) {
   const admin = supabaseAdmin();
 
-  let eventos;
+  let eventos: EventoDoGoogle[];
   try {
     eventos = await listarEventos(usuarioId, 30);
   } catch (e) {
-    if (e instanceof GoogleDesconectado) {
-      return { usuarioId, desconectado: true };
-    }
+    if (e instanceof GoogleDesconectado) return { usuarioId, desconectado: true };
     throw e;
   }
 
@@ -42,19 +44,15 @@ async function sincronizar(usuarioId: string) {
   for (const evento of eventos) {
     const { data: existente } = await admin
       .from("compromissos")
-      .select("*")
+      .select("*, lembretes(*)")
       .eq("usuario_id", usuarioId)
       .eq("google_event_id", evento.id)
       .maybeSingle();
 
     if (evento.cancelado) {
-      if (existente) {
+      if (existente && !existente.cancelado) {
         await admin.from("compromissos").update({ cancelado: true }).eq("id", existente.id);
-        await admin
-          .from("lembretes")
-          .update({ status: "cancelado" })
-          .eq("compromisso_id", existente.id)
-          .eq("status", "pendente");
+        await admin.from("lembretes").delete().eq("compromisso_id", existente.id);
         cancelados++;
       }
       continue;
@@ -76,27 +74,42 @@ async function sincronizar(usuarioId: string) {
         .select()
         .single();
 
-      // Se há um lembrete padrão, a reunião já chega agendada e revisada.
+      if (!criado) continue;
+
+      // Com lembrete padrão nas configurações, a reunião já chega com ele no
+      // Google e sai da caixa "Novas reuniões".
       const padrao = config?.lembrete_padrao_minutos;
-      if (criado && typeof padrao === "number") {
-        await definirLembretes(admin, {
-          usuarioId: usuarioId,
-          compromissoId: criado.id,
-          inicio: criado.inicio,
-          pedidos: [{ minutos_antes: padrao, canal: "whatsapp" }],
-        });
+      let lembretes = evento.lembretes ?? [];
+      if (typeof padrao === "number") {
+        lembretes = [{ minutos_antes: padrao, canal: "notificacao" }];
+        await definirLembretesNoEvento(usuarioId, evento.id, lembretes);
         await admin.from("compromissos").update({ revisado: true }).eq("id", criado.id);
       }
+
+      await guardarLembretes(admin, {
+        usuarioId,
+        compromissoId: criado.id,
+        inicio: criado.inicio,
+        pedidos: lembretes,
+      });
       novos++;
       continue;
     }
 
-    const mudou =
+    const mudouEvento =
       existente.titulo !== evento.titulo ||
       new Date(existente.inicio).getTime() !== new Date(evento.inicio).getTime() ||
       (existente.local ?? null) !== (evento.local ?? null);
 
-    if (mudou) {
+    // null = o evento usa o padrão da agenda; aí não há lista para copiar.
+    const doGoogle = evento.lembretes ?? [];
+    const guardados = (existente.lembretes as Lembrete[]).map((l) => ({
+      minutos_antes: l.minutos_antes,
+      canal: l.canal,
+    }));
+    const mudouLembretes = !mesmosLembretes(doGoogle, guardados);
+
+    if (mudouEvento) {
       await admin
         .from("compromissos")
         .update({
@@ -107,8 +120,16 @@ async function sincronizar(usuarioId: string) {
           atualizado_em: new Date().toISOString(),
         })
         .eq("id", existente.id);
+    }
 
-      await recalcularLembretes(admin, existente as Compromisso, evento.inicio);
+    // O horário de cada lembrete depende do início, então mudou um, recalcula.
+    if (mudouEvento || mudouLembretes) {
+      await guardarLembretes(admin, {
+        usuarioId,
+        compromissoId: existente.id,
+        inicio: evento.inicio,
+        pedidos: doGoogle,
+      });
       atualizados++;
     }
   }
@@ -118,20 +139,4 @@ async function sincronizar(usuarioId: string) {
     .upsert({ usuario_id: usuarioId, ultima_sync_calendar: new Date().toISOString() });
 
   return { usuarioId, novos, atualizados, cancelados, vistos: eventos.length };
-}
-
-/** Mudou o horário da reunião: os lembretes pendentes andam junto. */
-async function recalcularLembretes(admin: any, compromisso: Compromisso, novoInicio: string) {
-  const { data: pendentes } = await admin
-    .from("lembretes")
-    .select("*")
-    .eq("compromisso_id", compromisso.id)
-    .eq("status", "pendente");
-
-  for (const lembrete of (pendentes ?? []) as Lembrete[]) {
-    await admin
-      .from("lembretes")
-      .update({ enviar_em: momentoDoLembrete(novoInicio, lembrete.minutos_antes).toISOString() })
-      .eq("id", lembrete.id);
-  }
 }

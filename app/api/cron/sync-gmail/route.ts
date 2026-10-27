@@ -88,8 +88,9 @@ async function varrer(usuarioId: string) {
       continue;
     }
 
+    // A etiqueta deixa claro na agenda o que veio do email, e o "desfazer" do site o remove.
     const eventoId = await criarEvento(usuarioId, {
-      titulo: convite.titulo,
+      titulo: `[Agente] ${convite.titulo}`,
       inicio: convite.inicio,
       fim: convite.fim,
       local: convite.local,

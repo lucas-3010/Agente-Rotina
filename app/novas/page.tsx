@@ -1,4 +1,4 @@
-import { desfazerDoGmail, revisarReuniao } from "@/app/acoes";
+import { desfazerDoGmail, manterPadrao, revisarReuniao } from "@/app/acoes";
 import { Moldura, Vazio } from "@/components/moldura";
 import { SeletorLembretes } from "@/components/seletor-lembretes";
 import { contarNovas, reunioesNovas } from "@/lib/consultas";
@@ -12,7 +12,7 @@ export default async function Novas() {
   return (
     <Moldura
       titulo="Novas reuniões"
-      subtitulo="Chegaram sozinhas e ainda não têm lembrete"
+      subtitulo="Chegaram sozinhas. Escolha os lembretes ou mantenha os da agenda"
       pendentes={pendentes}
     >
       {reunioes.length === 0 ? (
@@ -30,9 +30,9 @@ export default async function Novas() {
               await desfazerDoGmail(reuniao.id);
             };
 
-            const semLembrete = async () => {
+            const padrao = async () => {
               "use server";
-              await revisarReuniao(reuniao.id, new FormData());
+              await manterPadrao(reuniao.id);
             };
 
             return (
@@ -69,12 +69,12 @@ export default async function Novas() {
                 </form>
 
                 <div className="mt-2 flex gap-2">
-                  <form action={semLembrete} className="flex-1">
+                  <form action={padrao} className="flex-1">
                     <button
                       type="submit"
                       className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-400"
                     >
-                      Sem lembrete
+                      Manter o padrão da agenda
                     </button>
                   </form>
 

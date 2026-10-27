@@ -2,7 +2,7 @@ import Link from "next/link";
 import { antecedenciaPorExtenso, faltam, horas } from "@/lib/tempo";
 import type { CompromissoComLembretes } from "@/lib/tipos";
 
-const ROTULO_CANAL: Record<string, string> = { email: "Email", whatsapp: "WhatsApp" };
+const ROTULO_CANAL: Record<string, string> = { email: "Email", notificacao: "Notificação" };
 
 export function CartaoCompromisso({
   compromisso,
@@ -12,7 +12,6 @@ export function CartaoCompromisso({
   destaque?: boolean;
 }) {
   const pendentes = compromisso.lembretes.filter((l) => l.status === "pendente");
-  const falhou = compromisso.lembretes.some((l) => l.status === "falhou" || l.status === "perdido");
 
   return (
     <Link
@@ -50,12 +49,9 @@ export function CartaoCompromisso({
             {ROTULO_CANAL[l.canal]} {antecedenciaPorExtenso(l.minutos_antes)}
           </span>
         ))}
-        {pendentes.length === 0 && !falhou && (
-          <span className="rounded-md px-2 py-0.5 text-xs text-slate-400">sem lembrete</span>
-        )}
-        {falhou && (
-          <span className="rounded-md bg-red-100 px-2 py-0.5 text-xs text-red-700 dark:bg-red-950 dark:text-red-300">
-            lembrete não saiu
+        {pendentes.length === 0 && (
+          <span className="rounded-md px-2 py-0.5 text-xs text-slate-400">
+            {compromisso.origem === "manual" ? "sem lembrete" : "lembrete padrão da agenda"}
           </span>
         )}
       </div>

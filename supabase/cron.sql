@@ -4,18 +4,6 @@
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
--- Dispara os lembretes vencidos, a cada minuto.
-select cron.schedule(
-  'lembretes',
-  '* * * * *',
-  $$
-  select net.http_post(
-    url := 'https://SEU_SITE/api/cron/lembretes',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer SEU_SEGREDO"}'::jsonb
-  );
-  $$
-);
-
 -- Sincroniza o Google Calendar, a cada 5 minutos.
 select cron.schedule(
   'sync-calendar',
@@ -40,16 +28,5 @@ select cron.schedule(
   $$
 );
 
--- Resumo do dia, 7h em São Paulo (10:00 UTC).
-select cron.schedule(
-  'resumo-diario',
-  '0 10 * * *',
-  $$
-  select net.http_post(
-    url := 'https://SEU_SITE/api/cron/resumo-diario',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer SEU_SEGREDO"}'::jsonb
-  );
-  $$
-);
-
--- Para remover depois: select cron.unschedule('lembretes');
+-- Para remover depois: select cron.unschedule('sync-calendar');
+-- Quem já tinha agendado as versões antigas: select cron.unschedule('lembretes'); select cron.unschedule('resumo-diario');

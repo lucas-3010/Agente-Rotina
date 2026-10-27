@@ -4,12 +4,12 @@ Documento vivo: https://claude.ai/artifact/7oEvhyzw6FDwE4eBqDvPcA
 
 ## Objetivo e decisões
 
-Um site pessoal que junta as reuniões do Google Calendar e as tarefas cadastradas à mão, e lembra de cada uma por email e WhatsApp, no horário escolhido.
+Um site pessoal que junta as reuniões do Google Calendar e as tarefas cadastradas à mão, e põe tudo no Google Agenda com os lembretes escolhidos. Quem avisa é o próprio Google Agenda: notificação no celular e email.
 
 | Tema | Decisão |
 | --- | --- |
-| Usuários | Só o Lucas (login com a conta Google; qualquer outra conta é recusada) |
-| Lembretes | Email e WhatsApp, escolhidos por tarefa |
+| Usuários | O Lucas (admin) e até 99 convidados, cada um vendo só o que é seu |
+| Lembretes | Do próprio Google Agenda: notificação e email, escolhidos por tarefa (até 5) |
 | Fonte principal | Google Calendar |
 | Gmail | Procura convites que não estão na agenda e os adiciona ao Calendar |
 | Antecedência | Escolhida no site, para cada tarefa ou reunião |
@@ -24,8 +24,8 @@ Um único site Next.js na Vercel faz tudo. O Supabase guarda os dados e, pelo Cr
 
 ```
 Google Calendar  <-->  +---------------------+  <-->  Claude Haiku (lê convites sem .ics)
-Gmail (leitura)   -->  |   Site na Vercel    |   -->  Resend (email)
-Você (celular/PC) -->  |  telas + rotas      |   -->  CallMeBot (WhatsApp)
+Gmail (leitura)   -->  |   Site na Vercel    |
+Você (celular/PC) -->  |  telas + rotas      |   (os avisos saem do Google Agenda)
                        +---------------------+
                               ^        |
                      aciona   |        | lê e grava
@@ -35,32 +35,32 @@ Você (celular/PC) -->  |  telas + rotas      |   -->  CallMeBot (WhatsApp)
                               +---------------+
 ```
 
-Tecnologias: Next.js com TypeScript e Tailwind, Supabase (Postgres, Auth com Google, Cron), Resend para email, CallMeBot para WhatsApp e Claude Haiku só para entender convites escritos em texto. Custo esperado: zero nos planos gratuitos, mais alguns centavos por mês de Claude.
+Tecnologias: Next.js com TypeScript e Tailwind, Supabase (Postgres, Auth com Google, Cron), Google Calendar API e Claude Haiku só para entender convites escritos em texto. Custo esperado: zero nos planos gratuitos, mais alguns centavos por mês de Claude.
 
 ## Telas do site
 
 Cinco telas, todas em português, com tema claro e escuro e pensadas primeiro para o celular.
 
-1. **Hoje**: linha do tempo do dia com reuniões e tarefas. Cada item mostra horário, local e os lembretes agendados (por exemplo, "WhatsApp 30 min antes"). No topo fica o próximo compromisso em destaque.
+1. **Hoje**: linha do tempo do dia com reuniões e tarefas. Cada item mostra horário, local e os lembretes agendados (por exemplo, "Notificação 30 min antes"). No topo fica o próximo compromisso em destaque.
 2. **Semana**: os próximos 7 dias agrupados por dia, com filtro entre tarefas e reuniões.
-3. **Nova tarefa** (botão fixo +): nome, data e hora, local (texto livre com link para o Google Maps), observações, canais (email, WhatsApp ou os dois) e um ou mais lembretes. Os atalhos são 10 min, 30 min, 1 h e 1 dia antes, e também dá para escolher um tempo personalizado. Editar e excluir usam o mesmo formulário.
-4. **Novas reuniões**: uma caixa de entrada com as reuniões recém-chegadas do Calendar, ou adicionadas a partir do Gmail, que ainda não têm lembrete. Você escolhe quando ser lembrado ou marca "sem lembrete". As que vieram do Gmail mostram o email de origem e têm um botão para desfazer, que remove o evento da agenda.
-5. **Configurações**: número do WhatsApp e chave do CallMeBot, email de destino, um botão para enviar lembrete de teste nos dois canais, um lembrete padrão opcional para reuniões (desligado por padrão) e o status da última sincronização com o Google.
+3. **Nova tarefa** (botão fixo +): nome, data e hora, local (texto livre com link para o Google Maps), observações e até 5 lembretes, cada um por notificação ou email. Os atalhos são 10 min, 30 min, 1 h e 1 dia antes, e também dá para escolher um tempo personalizado. Editar e excluir usam o mesmo formulário, e mudam o evento no Google Agenda junto. Em reunião de outra pessoa, só os lembretes podem ser mudados.
+4. **Novas reuniões**: uma caixa de entrada com as reuniões recém-chegadas do Calendar, ou adicionadas a partir do Gmail, que ainda não têm lembrete. Você escolhe quando ser lembrado ou marca "manter o padrão da agenda". As que vieram do Gmail mostram o email de origem e têm um botão para desfazer, que remove o evento da agenda.
+5. **Configurações**: um lembrete padrão opcional para reuniões (desligado por padrão) e o status da última sincronização com o Google.
 
 ## Dados e fluxos
 
-Tudo vira um **compromisso** com zero ou mais **lembretes**. Cada lembrete é uma linha com horário de envio e canal, e o agendador só precisa olhar o que já venceu.
+Tudo vira um **compromisso** com zero ou mais **lembretes**. Os lembretes de verdade ficam no evento do Google Agenda; o banco guarda uma cópia só para o site mostrar.
 
 | Tabela | Campos principais |
 | --- | --- |
 | `compromissos` | título, início, fim, local, observações, origem (manual, calendar, gmail), id do evento no Google, email de origem, status da revisão |
-| `lembretes` | compromisso, minutos antes, canal (email ou whatsapp), enviar_em, status (pendente, enviado, falhou), tentativas, erro |
-| `configuracoes` | telefone do WhatsApp, chave do CallMeBot, email de destino, lembrete padrão, última sincronização |
+| `lembretes` | compromisso, minutos antes, canal (notificacao ou email), horário calculado |
+| `configuracoes` | lembrete padrão, última sincronização |
 | `google_tokens` | token de atualização do Google, criptografado, acessível só pelo servidor |
 
-**Disparo de lembretes (a cada minuto).** O Supabase Cron chama uma rota protegida do site. Ela pega os lembretes pendentes com `enviar_em` já vencido, envia e marca como enviado. Uma falha é tentada até 3 vezes, e depois disso o lembrete aparece com aviso no site.
+**Lembretes.** Ao salvar uma tarefa, o site cria ou atualiza o evento no Google Agenda com os lembretes escolhidos (`popup` para notificação, `email` para email). Em reuniões de outras pessoas, o site muda só os lembretes da sua cópia do evento. Não há disparo próprio: o Google avisa.
 
-**Sincronização do Calendar (a cada 5 minutos).** Busca os eventos dos próximos 30 dias. Evento novo entra na caixa "Novas reuniões". Se mudar de horário, os lembretes são recalculados. Se for cancelado, os lembretes são cancelados.
+**Sincronização do Calendar (a cada 5 minutos).** Busca os eventos dos próximos 30 dias. Evento novo entra na caixa "Novas reuniões" (ou já recebe o lembrete padrão, se houver). Mudanças de horário e de lembretes feitas direto no app da Agenda são copiadas para o site. Evento cancelado some do site.
 
 **Varredura do Gmail (a cada 30 minutos).** Procura emails recentes que parecem convite: anexo `.ics`, links do Meet, Zoom ou Teams, ou palavras como "reunião" e "call".
 
@@ -69,26 +69,24 @@ Tudo vira um **compromisso** com zero ou mais **lembretes**. Cada lembrete é um
 3. Se já existe um evento parecido no Calendar (mesmo horário e título semelhante), nada é criado.
 4. Caso contrário, o evento é criado no Calendar com a etiqueta "[Agente]" e aparece em "Novas reuniões" com o botão de desfazer.
 
-**Mensagens.** Email pelo Resend, com assunto "Lembrete: <título> às 15:00" e corpo com local e link. WhatsApp pelo CallMeBot, com uma mensagem curta: "⏰ Reunião com X às 15:00 (em 30 min). Local: ...". Além disso, um resumo do dia às 7h por email e WhatsApp, que dá para desligar nas configurações.
+**Mensagens.** São as do próprio Google Agenda. Não há resumo do dia nem WhatsApp nesta versão.
 
 ## Erros, segurança e testes
 
-- **Acesso**: só o email Google do Lucas entra. Todas as tabelas têm RLS ligado, e as rotas do agendador exigem um segredo.
-- **Permissões do Google**: o site pede o Calendar (ler e criar eventos) e o Gmail somente leitura. Ele nunca envia email pela conta nem apaga nada, exceto o evento que ele mesmo criou, quando o botão de desfazer é usado.
-- **Segredos**: chaves do Resend, CallMeBot, Claude e Google ficam nas variáveis de ambiente da Vercel e do Supabase, nunca no código nem no GitHub.
-- **Se o Google desconectar**: o site mostra um aviso e manda um email pedindo para entrar de novo. As tarefas manuais continuam sendo lembradas.
-- **Lembrete atrasado**: se o agendador ficar parado, lembretes vencidos há menos de 15 min ainda são enviados. Os mais antigos são marcados como perdidos, para não chegar uma enxurrada de mensagens velhas.
-- **Testes**: testes automáticos para o cálculo de horários (incluindo fuso), a leitura de `.ics`, a detecção de duplicados e o disparo. Depois, um teste ponta a ponta no navegador: criar uma tarefa para daqui 2 minutos e confirmar que o email e o WhatsApp chegam.
+- **Acesso**: entram o admin e os convidados da aba Convites. Todas as tabelas têm RLS ligado, e as rotas do agendador exigem um segredo.
+- **Permissões do Google**: o site pede o Calendar (ler e criar eventos) e o Gmail somente leitura. Ele nunca envia email pela conta nem apaga evento de outra pessoa; só apaga os eventos que ele mesmo criou (tarefa excluída ou botão de desfazer).
+- **Segredos**: chaves do Supabase, Claude e Google ficam nas variáveis de ambiente da Vercel e do Supabase, nunca no código nem no GitHub.
+- **Se o Google desconectar**: o site mostra um aviso pedindo para entrar de novo. Os lembretes já salvos continuam no Google Agenda e chegam normalmente.
+- **Limites do Google**: até 5 lembretes por evento, até 4 semanas antes. O site avisa em vez de cortar calado.
+- **Testes**: testes automáticos para o cálculo de horários (incluindo fuso), a leitura de `.ics`, a detecção de duplicados e a conversão de lembretes para o formato do Google. Depois, um teste real: criar uma tarefa para daqui 5 minutos e confirmar que a notificação chega no celular.
 
 ## Fora desta primeira versão
 
-Tarefas recorrentes (toda segunda, todo dia), outras pessoas usando o site, aplicativo nativo de celular e responder ao lembrete pelo WhatsApp (por exemplo, "adiar 10 min").
+Tarefas recorrentes (toda segunda, todo dia), aplicativo nativo de celular, WhatsApp e resumo do dia.
 
 ## Pendências com o Lucas
 
 - [ ] Aprovar esta especificação
 - [x] Criar o repositório privado no GitHub
-- [ ] Confirmar o CallMeBot para o WhatsApp e ativá-lo no número
-- [ ] Criar as contas gratuitas no Resend e no Supabase
+- [x] Criar o projeto no Supabase
 - [ ] Criar o projeto no Google Cloud para o login com Google
-- [ ] Dizer se quer o resumo do dia às 7h ligado por padrão

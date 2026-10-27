@@ -1,5 +1,9 @@
 import { notFound, redirect } from "next/navigation";
-import { atualizarCompromisso, criarCompromisso, excluirCompromisso } from "@/app/acoes";
+import {
+  atualizarCompromisso,
+  criarCompromisso,
+  excluirCompromisso,
+} from "@/app/acoes";
 import { Moldura } from "@/components/moldura";
 import { SeletorLembretes } from "@/components/seletor-lembretes";
 import { supabaseDoUsuario } from "@/lib/supabase/servidor";
@@ -8,7 +12,11 @@ import type { CompromissoComLembretes } from "@/lib/tipos";
 
 export const dynamic = "force-dynamic";
 
-export default async function Tarefa({ params }: { params: Promise<{ id: string }> }) {
+export default async function Tarefa({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const nova = id === "nova";
 
@@ -42,51 +50,76 @@ export default async function Tarefa({ params }: { params: Promise<{ id: string 
     redirect("/");
   }
 
+  // Reunião da agenda ou do Gmail: o evento é de outra pessoa, aqui só mudam os lembretes.
+  const soLembretes = !nova && compromisso?.origem !== "manual";
+
   const pendentes =
     compromisso?.lembretes
       .filter((l) => l.status === "pendente")
       .map((l) => ({ minutos_antes: l.minutos_antes, canal: l.canal })) ?? [];
 
   return (
-    <Moldura titulo={nova ? "Nova tarefa" : "Editar"}>
+    <Moldura
+      titulo={nova ? "Nova tarefa" : soLembretes ? "Lembretes" : "Editar"}
+    >
       <form action={salvar} className="space-y-6">
-        <Campo rotulo="Nome">
-          <input
-            name="titulo"
-            required
-            defaultValue={compromisso?.titulo ?? ""}
-            placeholder="Reunião com o time"
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
-          />
-        </Campo>
+        {soLembretes && compromisso ? (
+          <div>
+            <h2 className="font-medium text-slate-900 dark:text-slate-100">
+              {compromisso.titulo}
+            </h2>
+            {compromisso.local && (
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                {compromisso.local}
+              </p>
+            )}
+            <p className="mt-2 text-xs text-slate-500">
+              Para mudar horário ou local, edite no Google Agenda.
+            </p>
+          </div>
+        ) : (
+          <>
+            <Campo rotulo="Nome">
+              <input
+                name="titulo"
+                required
+                defaultValue={compromisso?.titulo ?? ""}
+                placeholder="Reunião com o time"
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
+              />
+            </Campo>
 
-        <Campo rotulo="Data e hora">
-          <input
-            type="datetime-local"
-            name="inicio"
-            required
-            defaultValue={compromisso ? instanteParaHoraLocal(compromisso.inicio) : ""}
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
-          />
-        </Campo>
+            <Campo rotulo="Data e hora">
+              <input
+                type="datetime-local"
+                name="inicio"
+                required
+                defaultValue={
+                  compromisso ? instanteParaHoraLocal(compromisso.inicio) : ""
+                }
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
+              />
+            </Campo>
 
-        <Campo rotulo="Local" opcional>
-          <input
-            name="local"
-            defaultValue={compromisso?.local ?? ""}
-            placeholder="Av. Paulista 1000, ou link do Meet"
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
-          />
-        </Campo>
+            <Campo rotulo="Local" opcional>
+              <input
+                name="local"
+                defaultValue={compromisso?.local ?? ""}
+                placeholder="Av. Paulista 1000, ou link do Meet"
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
+              />
+            </Campo>
 
-        <Campo rotulo="Observações" opcional>
-          <textarea
-            name="observacoes"
-            rows={3}
-            defaultValue={compromisso?.observacoes ?? ""}
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
-          />
-        </Campo>
+            <Campo rotulo="Observações" opcional>
+              <textarea
+                name="observacoes"
+                rows={3}
+                defaultValue={compromisso?.observacoes ?? ""}
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
+              />
+            </Campo>
+          </>
+        )}
 
         <Campo rotulo="Quando lembrar">
           <SeletorLembretes iniciais={pendentes} />
@@ -102,7 +135,7 @@ export default async function Tarefa({ params }: { params: Promise<{ id: string 
         </div>
       </form>
 
-      {!nova && (
+      {!nova && !soLembretes && (
         <form action={excluir} className="mt-4">
           <button
             type="submit"
@@ -129,7 +162,9 @@ function Campo({
     <label className="block">
       <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
         {rotulo}
-        {opcional && <span className="ml-1 font-normal text-slate-400">opcional</span>}
+        {opcional && (
+          <span className="ml-1 font-normal text-slate-400">opcional</span>
+        )}
       </span>
       {children}
     </label>

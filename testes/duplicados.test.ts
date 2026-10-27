@@ -10,19 +10,26 @@ const naAgenda: EventoDoGoogle[] = [
     fim: "2026-11-10T19:00:00Z",
     local: null,
     cancelado: false,
+    lembretes: null,
   },
 ];
 
 describe("pareceDuplicado", () => {
   it("pega o mesmo evento com o mesmo título", () => {
     expect(
-      pareceDuplicado({ titulo: "Reunião de alinhamento", inicio: "2026-11-10T18:00:00Z" }, naAgenda),
+      pareceDuplicado(
+        { titulo: "Reunião de alinhamento", inicio: "2026-11-10T18:00:00Z" },
+        naAgenda,
+      ),
     ).toBe(true);
   });
 
   it("ignora acentos e maiúsculas", () => {
     expect(
-      pareceDuplicado({ titulo: "REUNIAO DE ALINHAMENTO", inicio: "2026-11-10T18:00:00Z" }, naAgenda),
+      pareceDuplicado(
+        { titulo: "REUNIAO DE ALINHAMENTO", inicio: "2026-11-10T18:00:00Z" },
+        naAgenda,
+      ),
     ).toBe(true);
   });
 
@@ -31,30 +38,47 @@ describe("pareceDuplicado", () => {
       { ...naAgenda[0], titulo: "[Agente] Reunião de alinhamento" },
     ];
     expect(
-      pareceDuplicado({ titulo: "Reunião de alinhamento", inicio: "2026-11-10T18:00:00Z" }, comEtiqueta),
+      pareceDuplicado(
+        { titulo: "Reunião de alinhamento", inicio: "2026-11-10T18:00:00Z" },
+        comEtiqueta,
+      ),
     ).toBe(true);
   });
 
   it("aceita diferença de alguns minutos no horário", () => {
     expect(
-      pareceDuplicado({ titulo: "Reunião de alinhamento", inicio: "2026-11-10T18:20:00Z" }, naAgenda),
+      pareceDuplicado(
+        { titulo: "Reunião de alinhamento", inicio: "2026-11-10T18:20:00Z" },
+        naAgenda,
+      ),
     ).toBe(true);
   });
 
   it("não confunde reunião de outro horário", () => {
     expect(
-      pareceDuplicado({ titulo: "Reunião de alinhamento", inicio: "2026-11-10T21:00:00Z" }, naAgenda),
+      pareceDuplicado(
+        { titulo: "Reunião de alinhamento", inicio: "2026-11-10T21:00:00Z" },
+        naAgenda,
+      ),
     ).toBe(false);
   });
 
   it("não confunde assunto diferente no mesmo horário", () => {
     expect(
-      pareceDuplicado({ titulo: "Dentista", inicio: "2026-11-10T18:00:00Z" }, naAgenda),
+      pareceDuplicado(
+        { titulo: "Dentista", inicio: "2026-11-10T18:00:00Z" },
+        naAgenda,
+      ),
     ).toBe(false);
   });
 
   it("com a agenda vazia, nada é duplicado", () => {
-    expect(pareceDuplicado({ titulo: "Qualquer", inicio: "2026-11-10T18:00:00Z" }, [])).toBe(false);
+    expect(
+      pareceDuplicado(
+        { titulo: "Qualquer", inicio: "2026-11-10T18:00:00Z" },
+        [],
+      ),
+    ).toBe(false);
   });
 });
 

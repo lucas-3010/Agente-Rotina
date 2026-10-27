@@ -1,4 +1,5 @@
-export type Canal = "email" | "whatsapp";
+/** Os dois jeitos do Google Agenda avisar: notificação no celular e email. */
+export type Canal = "notificacao" | "email";
 
 export type Origem = "manual" | "calendar" | "gmail";
 
@@ -37,12 +38,7 @@ export interface Lembrete {
 
 export interface Configuracoes {
   usuario_id: string;
-  whatsapp_telefone: string | null;
-  whatsapp_apikey: string | null;
-  email_destino: string | null;
   lembrete_padrao_minutos: number | null;
-  resumo_diario: boolean;
-  resumo_hora: string;
   ultima_sync_calendar: string | null;
   ultima_sync_gmail: string | null;
   erro_google: string | null;
