@@ -37,13 +37,3 @@ export async function usuarioAtual() {
   const { data } = await supabase.auth.getUser();
   return data.user ?? null;
 }
-
-/**
- * Só o email configurado em EMAIL_PERMITIDO entra. É o que mantém o site
- * sendo de uma pessoa só, mesmo que alguém descubra a URL.
- */
-export function emailPermitido(email: string | undefined | null): boolean {
-  const permitido = process.env.EMAIL_PERMITIDO?.trim().toLowerCase();
-  if (!permitido) return false;
-  return !!email && email.trim().toLowerCase() === permitido;
-}

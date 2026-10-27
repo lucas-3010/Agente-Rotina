@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { conferirSegredo, usuarioDoAgendador } from "@/lib/cron/autorizar";
+import { conferirSegredo, paraCada, usuariosComGoogle } from "@/lib/cron/autorizar";
 import { criarEvento, listarEventos, pareceDuplicado } from "@/lib/google/calendar";
 import { buscarCandidatos, lerIcs, type ConviteExtraido } from "@/lib/google/gmail";
 import { GoogleDesconectado } from "@/lib/google/token";
@@ -12,16 +12,16 @@ export const maxDuration = 60;
 export async function POST(request: Request) {
   const recusa = conferirSegredo(request);
   if (recusa) return recusa;
+  return NextResponse.json(await paraCada(await usuariosComGoogle(), varrer));
+}
 
-  const usuario = await usuarioDoAgendador();
-  if (!usuario) return NextResponse.json({ erro: "usuário não encontrado" }, { status: 404 });
-
+async function varrer(usuarioId: string) {
   const admin = supabaseAdmin();
 
   const { data: config } = await admin
     .from("configuracoes")
     .select("ultima_sync_gmail")
-    .eq("usuario_id", usuario.id)
+    .eq("usuario_id", usuarioId)
     .maybeSingle();
 
   // Na primeira vez, olha 2 dias para trás; depois, só o que chegou desde a última passada.
@@ -32,11 +32,11 @@ export async function POST(request: Request) {
   let candidatos;
   let naAgenda;
   try {
-    candidatos = await buscarCandidatos(usuario.id, desde);
-    naAgenda = await listarEventos(usuario.id, 60);
+    candidatos = await buscarCandidatos(usuarioId, desde);
+    naAgenda = await listarEventos(usuarioId, 60);
   } catch (e) {
     if (e instanceof GoogleDesconectado) {
-      return NextResponse.json({ erro: "google desconectado" }, { status: 409 });
+      return { usuarioId, desconectado: true };
     }
     throw e;
   }
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     const { data: jaVisto } = await admin
       .from("compromissos")
       .select("id")
-      .eq("usuario_id", usuario.id)
+      .eq("usuario_id", usuarioId)
       .eq("gmail_message_id", email.id)
       .maybeSingle();
 
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     // Data deduzida pelo Claude: não mexe na agenda, só pede confirmação no site.
     if (!convite.confiavel) {
       await admin.from("compromissos").insert({
-        usuario_id: usuario.id,
+        usuario_id: usuarioId,
         titulo: convite.titulo,
         inicio: convite.inicio,
         fim: convite.fim,
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
       continue;
     }
 
-    const eventoId = await criarEvento(usuario.id, {
+    const eventoId = await criarEvento(usuarioId, {
       titulo: convite.titulo,
       inicio: convite.inicio,
       fim: convite.fim,
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
     });
 
     await admin.from("compromissos").insert({
-      usuario_id: usuario.id,
+      usuario_id: usuarioId,
       titulo: convite.titulo,
       inicio: convite.inicio,
       fim: convite.fim,
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
 
   await admin
     .from("configuracoes")
-    .upsert({ usuario_id: usuario.id, ultima_sync_gmail: new Date().toISOString() });
+    .upsert({ usuario_id: usuarioId, ultima_sync_gmail: new Date().toISOString() });
 
-  return NextResponse.json({ criados, paraConfirmar, ignorados, vistos: candidatos.length });
+  return { usuarioId, criados, paraConfirmar, ignorados, vistos: candidatos.length };
 }

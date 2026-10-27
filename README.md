@@ -20,7 +20,7 @@ As telas são **Hoje**, **Semana**, **Nova tarefa**, **Novas reuniões** e **Aju
 
 ## Decisões que valem saber
 
-- **Uma pessoa só.** `EMAIL_PERMITIDO` é o único email que entra. As tabelas têm RLS, e as rotas do agendador exigem `CRON_SECRET`.
+- **Cada um vê só o que é seu.** Entram o admin (`EMAIL_ADMIN`) e os emails da tabela `usuarios_permitidos`, ou qualquer conta com `ACESSO_ABERTO=true`. Todas as tabelas têm RLS, e as rotas do agendador exigem `CRON_SECRET`.
 - **Fuso fixo.** Tudo é calculado em `America/Sao_Paulo`, não no fuso do navegador.
 - **Lembrete atrasado não vira enxurrada.** Se o agendador ficar parado, só o que venceu há menos de 15 minutos é enviado; o resto é marcado como perdido.
 - **O Gmail não manda na agenda sozinho quando há dúvida.** Convite com `.ics` é lido direto do arquivo. Sem `.ics`, o Claude lê o texto, e se a data foi deduzida o item só aparece para você confirmar.

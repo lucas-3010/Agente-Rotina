@@ -73,6 +73,13 @@ create table if not exists google_tokens (
   atualizado_em timestamptz not null default now()
 );
 
+-- Quem pode entrar além do admin (EMAIL_ADMIN). Só a service role enxerga.
+create table if not exists usuarios_permitidos (
+  email text primary key check (email = lower(email)),
+  adicionado_em timestamptz not null default now()
+);
+
+alter table usuarios_permitidos enable row level security;
 alter table compromissos enable row level security;
 alter table lembretes enable row level security;
 alter table configuracoes enable row level security;

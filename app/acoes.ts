@@ -3,13 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { apagarEvento } from "@/lib/google/calendar";
 import { definirLembretes } from "@/lib/lembretes";
-import { emailPermitido, supabaseDoUsuario, usuarioAtual } from "@/lib/supabase/servidor";
+import { podeEntrar } from "@/lib/acesso";
+import { supabaseDoUsuario, usuarioAtual } from "@/lib/supabase/servidor";
 import { horaLocalParaInstante } from "@/lib/tempo";
 import type { Canal, EntradaCompromisso } from "@/lib/tipos";
 
 async function sessao() {
   const usuario = await usuarioAtual();
-  if (!usuario || !emailPermitido(usuario.email)) {
+  if (!usuario || !(await podeEntrar(usuario.email))) {
     throw new Error("Sem permissão.");
   }
   return { usuario, supabase: await supabaseDoUsuario() };

@@ -67,13 +67,14 @@ Na Vercel, em **Settings > Environment Variables**:
 | `GOOGLE_CLIENT_SECRET` | Google Cloud, passo 2 (secreta) |
 | `RESEND_API_KEY` | Resend, passo 3 |
 | `EMAIL_REMETENTE` | `Agente de rotina <onboarding@resend.dev>` |
-| `EMAIL_PERMITIDO` | Seu email do Google. É o único que entra no site. |
+| `EMAIL_ADMIN` | Seu email do Google. Ele sempre entra no site. |
+| `ACESSO_ABERTO` | `false`: só você e os convidados entram. `true`: qualquer conta Google. |
 | `CRON_SECRET` | Invente uma senha longa, ou gere com `openssl rand -hex 32` |
 | `ANTHROPIC_API_KEY` | Anthropic, passo 5 (opcional) |
 
 ## Conferindo se funcionou
 
-1. Abra o site e entre com o Google. Qualquer outra conta é recusada.
+1. Abra o site e entre com o Google. Contas que não são a sua nem de convidados são recusadas.
 2. Vá em **Ajustes**, preencha o WhatsApp e clique em **Enviar lembrete de teste**. Devem chegar um email e uma mensagem.
 3. Crie uma tarefa para daqui 3 minutos, com lembrete "na hora". Espere e veja se chega.
 4. Em até 5 minutos suas reuniões da agenda aparecem em **Novas reuniões**.

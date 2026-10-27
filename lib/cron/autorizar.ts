@@ -19,18 +19,36 @@ export function conferirSegredo(request: Request): NextResponse | null {
   return null;
 }
 
-/**
- * O site é de uma pessoa só, mas o agendador não tem sessão. Ele acha o
- * usuário pelo email permitido.
- */
-export async function usuarioDoAgendador(): Promise<{ id: string; email: string } | null> {
-  const permitido = process.env.EMAIL_PERMITIDO?.trim().toLowerCase();
-  if (!permitido) return null;
-
-  const admin = supabaseAdmin();
-  const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
+/** Quem tem o Google conectado: são essas pessoas que o agendador sincroniza. */
+export async function usuariosComGoogle(): Promise<string[]> {
+  const { data, error } = await supabaseAdmin().from("google_tokens").select("usuario_id");
   if (error) throw new Error(`Não consegui listar usuários: ${error.message}`);
+  return (data ?? []).map((l) => l.usuario_id);
+}
 
-  const usuario = data.users.find((u) => u.email?.toLowerCase() === permitido);
-  return usuario ? { id: usuario.id, email: usuario.email! } : null;
+export async function emailDoUsuario(usuarioId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin().auth.admin.getUserById(usuarioId);
+  return data.user?.email ?? null;
+}
+
+/**
+ * Roda a mesma tarefa para cada usuário. O erro de um não impede os outros:
+ * fica registrado no resultado e o agendador segue.
+ */
+export async function paraCada<T>(
+  usuarios: string[],
+  tarefa: (usuarioId: string) => Promise<T>,
+): Promise<{ usuarios: number; resultados: T[]; erros: { usuarioId: string; erro: string }[] }> {
+  const resultados: T[] = [];
+  const erros: { usuarioId: string; erro: string }[] = [];
+
+  for (const usuarioId of usuarios) {
+    try {
+      resultados.push(await tarefa(usuarioId));
+    } catch (e) {
+      erros.push({ usuarioId, erro: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  return { usuarios: usuarios.length, resultados, erros };
 }

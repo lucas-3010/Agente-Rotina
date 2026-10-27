@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { conferirSegredo } from "@/lib/cron/autorizar";
+import { conferirSegredo, emailDoUsuario } from "@/lib/cron/autorizar";
 import { enviarEmail, enviarWhatsApp, FalhaDeEnvio } from "@/lib/envio/canais";
 import { montarLembrete } from "@/lib/envio/mensagem";
 import { devoEnviar, estaPerdido, MAX_TENTATIVAS, TOLERANCIA_MINUTOS } from "@/lib/lembretes";
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     .eq("status", "pendente")
     .lte("enviar_em", limite)
     .order("enviar_em", { ascending: true })
-    .limit(50);
+    .limit(200);
 
   if (error) {
     return NextResponse.json({ erro: error.message }, { status: 500 });
@@ -94,7 +94,7 @@ async function despachar(
   const mensagem = montarLembrete(compromisso, lembrete.minutos_antes);
 
   if (lembrete.canal === "email") {
-    const destino = config?.email_destino ?? process.env.EMAIL_PERMITIDO;
+    const destino = config?.email_destino ?? (await emailDoUsuario(lembrete.usuario_id));
     if (!destino) throw new FalhaDeEnvio("Sem email de destino configurado.");
     await enviarEmail(destino, mensagem);
     return;

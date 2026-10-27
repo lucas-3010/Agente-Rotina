@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { conferirSegredo, usuarioDoAgendador } from "@/lib/cron/autorizar";
+import { conferirSegredo, emailDoUsuario, paraCada } from "@/lib/cron/autorizar";
 import { enviarEmail, enviarWhatsApp } from "@/lib/envio/canais";
 import { montarResumoDoDia } from "@/lib/envio/mensagem";
 import { supabaseAdmin } from "@/lib/supabase/servidor";
@@ -7,29 +7,30 @@ import { fimDoDia, inicioDoDia } from "@/lib/tempo";
 import type { Compromisso, Configuracoes } from "@/lib/tipos";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const recusa = conferirSegredo(request);
   if (recusa) return recusa;
 
-  const usuario = await usuarioDoAgendador();
-  if (!usuario) return NextResponse.json({ erro: "usuário não encontrado" }, { status: 404 });
-
-  const admin = supabaseAdmin();
-  const { data: config } = await admin
+  const { data: configs, error } = await supabaseAdmin()
     .from("configuracoes")
     .select("*")
-    .eq("usuario_id", usuario.id)
-    .maybeSingle();
+    .eq("resumo_diario", true);
 
-  if (!config?.resumo_diario) {
-    return NextResponse.json({ enviado: false, motivo: "resumo desligado" });
-  }
+  if (error) return NextResponse.json({ erro: error.message }, { status: 500 });
 
-  const { data: compromissos } = await admin
+  const porUsuario = new Map((configs ?? []).map((c) => [c.usuario_id, c as Configuracoes]));
+  return NextResponse.json(
+    await paraCada([...porUsuario.keys()], (id) => enviarResumo(porUsuario.get(id)!)),
+  );
+}
+
+async function enviarResumo(config: Configuracoes) {
+  const { data: compromissos } = await supabaseAdmin()
     .from("compromissos")
     .select("*")
-    .eq("usuario_id", usuario.id)
+    .eq("usuario_id", config.usuario_id)
     .eq("cancelado", false)
     .gte("inicio", inicioDoDia().toISOString())
     .lt("inicio", fimDoDia().toISOString())
@@ -39,17 +40,21 @@ export async function POST(request: Request) {
   const erros: string[] = [];
 
   try {
-    const destino = (config as Configuracoes).email_destino ?? usuario.email;
+    const destino = config.email_destino ?? (await emailDoUsuario(config.usuario_id));
+    if (!destino) throw new Error("Sem email de destino.");
     await enviarEmail(destino, mensagem);
   } catch (e) {
     erros.push(e instanceof Error ? e.message : String(e));
   }
 
-  try {
-    await enviarWhatsApp(config as Configuracoes, mensagem.texto);
-  } catch (e) {
-    erros.push(e instanceof Error ? e.message : String(e));
+  // Sem WhatsApp configurado, o resumo vai só por email, sem contar como erro.
+  if (config.whatsapp_telefone && config.whatsapp_apikey) {
+    try {
+      await enviarWhatsApp(config, mensagem.texto);
+    } catch (e) {
+      erros.push(e instanceof Error ? e.message : String(e));
+    }
   }
 
-  return NextResponse.json({ enviado: erros.length < 2, itens: compromissos?.length ?? 0, erros });
+  return { usuarioId: config.usuario_id, itens: compromissos?.length ?? 0, erros };
 }

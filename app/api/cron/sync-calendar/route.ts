@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { conferirSegredo, usuarioDoAgendador } from "@/lib/cron/autorizar";
+import { conferirSegredo, paraCada, usuariosComGoogle } from "@/lib/cron/autorizar";
 import { listarEventos } from "@/lib/google/calendar";
 import { GoogleDesconectado } from "@/lib/google/token";
 import { definirLembretes } from "@/lib/lembretes";
@@ -8,25 +8,23 @@ import { momentoDoLembrete } from "@/lib/tempo";
 import type { Compromisso, Lembrete } from "@/lib/tipos";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const recusa = conferirSegredo(request);
   if (recusa) return recusa;
-  return sincronizar();
+  return NextResponse.json(await paraCada(await usuariosComGoogle(), sincronizar));
 }
 
-async function sincronizar() {
-  const usuario = await usuarioDoAgendador();
-  if (!usuario) return NextResponse.json({ erro: "usuário não encontrado" }, { status: 404 });
-
+async function sincronizar(usuarioId: string) {
   const admin = supabaseAdmin();
 
   let eventos;
   try {
-    eventos = await listarEventos(usuario.id, 30);
+    eventos = await listarEventos(usuarioId, 30);
   } catch (e) {
     if (e instanceof GoogleDesconectado) {
-      return NextResponse.json({ erro: "google desconectado" }, { status: 409 });
+      return { usuarioId, desconectado: true };
     }
     throw e;
   }
@@ -34,7 +32,7 @@ async function sincronizar() {
   const { data: config } = await admin
     .from("configuracoes")
     .select("lembrete_padrao_minutos")
-    .eq("usuario_id", usuario.id)
+    .eq("usuario_id", usuarioId)
     .maybeSingle();
 
   let novos = 0;
@@ -45,7 +43,7 @@ async function sincronizar() {
     const { data: existente } = await admin
       .from("compromissos")
       .select("*")
-      .eq("usuario_id", usuario.id)
+      .eq("usuario_id", usuarioId)
       .eq("google_event_id", evento.id)
       .maybeSingle();
 
@@ -66,7 +64,7 @@ async function sincronizar() {
       const { data: criado } = await admin
         .from("compromissos")
         .insert({
-          usuario_id: usuario.id,
+          usuario_id: usuarioId,
           titulo: evento.titulo,
           inicio: evento.inicio,
           fim: evento.fim,
@@ -82,7 +80,7 @@ async function sincronizar() {
       const padrao = config?.lembrete_padrao_minutos;
       if (criado && typeof padrao === "number") {
         await definirLembretes(admin, {
-          usuarioId: usuario.id,
+          usuarioId: usuarioId,
           compromissoId: criado.id,
           inicio: criado.inicio,
           pedidos: [{ minutos_antes: padrao, canal: "whatsapp" }],
@@ -117,9 +115,9 @@ async function sincronizar() {
 
   await admin
     .from("configuracoes")
-    .upsert({ usuario_id: usuario.id, ultima_sync_calendar: new Date().toISOString() });
+    .upsert({ usuario_id: usuarioId, ultima_sync_calendar: new Date().toISOString() });
 
-  return NextResponse.json({ novos, atualizados, cancelados, vistos: eventos.length });
+  return { usuarioId, novos, atualizados, cancelados, vistos: eventos.length };
 }
 
 /** Mudou o horário da reunião: os lembretes pendentes andam junto. */
